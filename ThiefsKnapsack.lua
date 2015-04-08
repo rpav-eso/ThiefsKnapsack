@@ -5,25 +5,28 @@ ThiefsKnapsack = {
    defaults = {
       x = 0,
       y = 0,
-
+      scale = 1,
       border = 10,
-
       hidden = false,
 
       show = {
          Value = true,
          Count = true,
+         Recipes = false,
          Average = false,
          Quality = true,
          Estimate = true,
       },
-
       showBars = true,
 
-      scale = 1,
+      options = {
+         nojunk = true,
+         sep_recipe = false,
+      },
    },
 
-   quality = { [0] = 0, 0, 0, 0, 0, 0 }
+   delaying = false,
+   quality = { [0] = 0, 0, 0, 0, 0, 0 },
 }
 local TK = ThiefsKnapsack
 
@@ -36,38 +39,50 @@ local function zeroStats()
    TK.itemCount = 0
    TK.totalValue = 0
    TK.totalQual = 0
+   TK.recipeCount = 0
 
    for i = 0,5 do
       TK.quality[i] = 0
    end
 end
 
-local function calcBagGoods()
-   local slots = PLAYER_INVENTORY.inventories[INVENTORY_BACKPACK].slots
+local function isRecipe(itemtype)
+   return ((itemtype == ITEMTYPE_RECIPE) or (itemtype == ITEMTYPE_RACIAL_STYLE_MOTIF))
+end
 
-   local itemCount = 0
-   local totalValue = 0
-   local totalQual = 0
-   local quals = TK.quality -- avoid consing, i guess
-
-   for i = 0,5 do
-      quals[i] = 0
+local function incrGoods(count, quality, itemtype, isJunk, value)
+   if(not (TK.saved.options.nojunk and isJunk) and
+      not (TK.saved.options.sep_recipe and isRecipe(itemtype)))
+   then
+      TK.itemCount = TK.itemCount + count
+      TK.totalQual = TK.totalQual + (quality * count)
+      TK.totalValue = TK.totalValue + (value * count)
+      TK.quality[quality] = (TK.quality[quality] or 0) + count
    end
 
+   if(isRecipe(itemtype)) then
+      TK.recipeCount = TK.recipeCount + 1
+   end
+end
+
+local function incrGoodsFromSlot(slot, neg)
+   neg = neg or 1
+   incrGoods(slot.stackCount * neg, slot.quality, slot.itemType, slot.isJunk, slot.sellPrice)
+end
+
+function TK:CalcBagGoods()
+   if(TK.delaying) then return; end
+
+   zeroStats()
+
+   local slots = PLAYER_INVENTORY.inventories[INVENTORY_BACKPACK].slots
    for i,slot in pairs(slots) do
       if(type(i) == "number") then
          if(slot.stolen) then
-            itemCount = itemCount + slot.stackCount
-            totalValue = totalValue + slot.stackSellPrice
-            totalQual = totalQual + (slot.quality * slot.stackCount)
-            quals[slot.quality] = (quals[slot.quality] or 0) + slot.stackCount
-          end
+            incrGoodsFromSlot(slot)
+         end
       end
    end
-
-   TK.itemCount = itemCount
-   TK.totalValue = totalValue
-   TK.totalQual = totalQual
 end
 
 function TK:SavePosition()
@@ -77,10 +92,11 @@ end
 
 function TK:UpdateDisplay()
    local w = TK.window
-   
+
    if(TK.itemCount < 1) then
       w.l_value:SetText(string.format("%d", 0))
       w.l_count:SetText(string.format("%d", 0))
+      w.l_recipes:SetText(string.format("%d", 0))
       w.l_average:SetText(string.format("%.2f", 0))
       w.l_estimate:SetText(string.format("%d", 0))
       w.l_quality:SetText(string.format("%.2f", 0))
@@ -91,6 +107,7 @@ function TK:UpdateDisplay()
    else
       w.l_value:SetText(string.format("%d", TK.totalValue))
       w.l_count:SetText(string.format("%d", TK.itemCount))
+      w.l_recipes:SetText(string.format("%d", TK.recipeCount))
       w.l_average:SetText(string.format("%.2f", TK.totalValue/TK.itemCount))
       w.l_estimate:SetText(string.format("%d",
                                          math.floor(TK.totalValue/TK.itemCount) *
@@ -113,7 +130,7 @@ function TK:toggle()
    local w = TK.window
 
    if(w:IsHidden()) then
-      calcBagGoods()
+      TK:CalcBagGoods()
       TK:UpdateDisplay()
    end
 
@@ -121,28 +138,23 @@ function TK:toggle()
    w:SetHidden(not w:IsHidden())
 end
 
-local function incrGoods(count, quality, value)
-   TK.itemCount = TK.itemCount + count
-   TK.totalQual = TK.totalQual + (quality * count)
-   TK.totalValue = TK.totalValue + (value * count)
-   TK.quality[quality] = (TK.quality[quality] or 0) + count
-end
-
-local function incrGoodsFromSlot(slot, neg)
-   neg = neg or 1
-   incrGoods(slot.stackCount * neg, slot.quality, slot.sellPrice)
-end
-
-
 local function onSlotUpdate(evCode, bagId, slotId, isNew, isc, reason)
+   if(TK.delaying) then return end
    if(bagId ~= INVENTORY_BACKPACK) then return end
-   if(not isNew) then return end
 
    local slot = PLAYER_INVENTORY.inventories[bagId].slots[slotId]
    if(not slot or not slot.stolen) then return end
 
-   incrGoodsFromSlot(slot)
-   TK:UpdateDisplay()
+   -- All right, we've got some bag management going on, so don't
+   -- update every time.
+   TK.delaying = true
+   EVENT_MANAGER:RegisterForUpdate(TK.name, 1000,
+                                   function()
+                                      EVENT_MANAGER:UnregisterForUpdate(TK.name)
+                                      TK.delaying = false
+                                      TK:CalcBagGoods()
+                                      TK:UpdateDisplay()
+   end)
 end
 
 local function onLoot(evc, receiver, name, count, isc, itemtype, isself, ispicked)
@@ -151,7 +163,7 @@ local function onLoot(evc, receiver, name, count, isc, itemtype, isself, ispicke
    -- No way to tell if the item was stolen!  IsItemLinkStolen()
    -- doesn't return true.  Doing this in onSlotUpdate() means we
    -- can't tell if it's being added to a stack, or splitting a stack.
-   calcBagGoods()
+   TK:CalcBagGoods()
    TK:UpdateDisplay()
 end
 
@@ -159,7 +171,7 @@ local function onLaunder(evc, res)
    if(res ~= ITEM_LAUNDER_RESULT_SUCCESS) then return end
 
    -- Likewise, no apparent way to get what was laundered, etc
-   calcBagGoods()
+   TK:CalcBagGoods()
    TK:UpdateDisplay()
 end
 
@@ -182,8 +194,9 @@ local function onSold(evc, il, count, money)
    if(not TK.isFencing) then return end
 
    local quality = GetItemLinkQuality(il)
+   local itemtype = GetItemLinkItemType(il)
 
-   incrGoods(-count, quality, money/count)
+   incrGoods(-count, quality, itemtype, false, money/count)
    TK:UpdateDisplay()
 end
 
@@ -284,7 +297,8 @@ end
 
 local controls = {
    {"Value",     0, "00000",  "/esoui/art/currency/currency_gold.dds"},
-   {"Count",    14, "000",    "/esoui/art/inventory/inventory_stolenitem_icon.dds"},
+   {"Count",    14, "000",    "/esoui/art/inventory/inventory_stolenitem_icon.dds" },
+   {"Recipes",  10, "000",    "/esoui/art/icons/quest_book_001.dds" },
    {"Average",  10, "000.00", "/esoui/art/vendor/vendor_tabicon_fence_up.dds"},
    {"Estimate", 10, "00000",  "/esoui/art/vendor/vendor_tabicon_fence_up.dds"},
    {"Quality",  10, "0.00",   "/esoui/art/crafting/smithing_tabicon_improve_up.dds"},
@@ -371,7 +385,7 @@ local function onPlayerActivated()
 
    make_bars(last)
 
-   calcBagGoods()
+   TK:CalcBagGoods()
    TK:UpdateControls()
    TK:UpdateDisplay()
    w:SetScale(TK.saved.scale)
@@ -379,7 +393,7 @@ end
 
 EVENT_MANAGER:RegisterForEvent(TK.name, EVENT_ADD_ON_LOADED, onLoaded)
 EVENT_MANAGER:RegisterForEvent(TK.name, EVENT_PLAYER_ACTIVATED, onPlayerActivated)
---EVENT_MANAGER:RegisterForEvent(TK.name, EVENT_INVENTORY_SINGLE_SLOT_UPDATE, onSlotUpdate)
+EVENT_MANAGER:RegisterForEvent(TK.name, EVENT_INVENTORY_SINGLE_SLOT_UPDATE, onSlotUpdate)
 EVENT_MANAGER:RegisterForEvent(TK.name, EVENT_LOOT_RECEIVED, onLoot)
 EVENT_MANAGER:RegisterForEvent(TK.name, EVENT_ITEM_LAUNDER_RESULT, onLaunder)
 EVENT_MANAGER:RegisterForEvent(TK.name, EVENT_JUSTICE_STOLEN_ITEMS_REMOVED, onApprehended)

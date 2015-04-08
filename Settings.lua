@@ -46,6 +46,15 @@ local options = {
      end,
    },
    { type = "checkbox",
+     name = "Show stolen recipe/motif count",
+     tooltip = "Display the number of recipes or racial motifs held",
+     getFunc = function() return TK.saved.show.Recipes; end,
+     setFunc = function(x)
+        TK.saved.show.Recipes = x
+        TK:UpdateControls()
+     end,
+   },
+   { type = "checkbox",
      name = "Show average value",
      tooltip = "Display the average value of an item (i.e., ratio of value to item count)",
      getFunc = function() return TK.saved.show.Average; end,
@@ -55,8 +64,8 @@ local options = {
      end,
    },
    { type = "checkbox",
-     name = "Show estimated daily launder",
-     tooltip = "Show the estimated daily haul based on remaining launders and the average stolen item value",
+     name = "Show estimated daily profit",
+     tooltip = "Show the estimated daily haul based on remaining fence sells and the average stolen item value",
      getFunc = function() return TK.saved.show.Estimate; end,
      setFunc = function(x)
         TK.saved.show.Estimate = x
@@ -81,10 +90,31 @@ local options = {
         TK:UpdateControls()
      end,
    },
+   { type = "header",
+     name = "Options", },
+   { type = "checkbox",
+     name = "Don't count junk",
+     tooltip = "If a stolen item is marked as junk, it won't be counted",
+     getFunc = function() return TK.saved.options.nojunk; end,
+     setFunc = function(x)
+        TK.saved.options.nojunk = x
+        TK:CalcBagGoods()
+        TK:UpdateDisplay()
+     end,
+   },
+   { type = "checkbox",
+     name = "Separate recipes and motifs",
+     tooltip = "If a stolen item is a recipe or motif, count it separately",
+     getFunc = function() return TK.saved.options.sep_recipe; end,
+     setFunc = function(x)
+        TK.saved.options.sep_recipe = x
+        TK:CalcBagGoods()
+        TK:UpdateDisplay()
+     end,
+   },
 }
 
 function TK:RegisterSettings()
    LAM:RegisterAddonPanel("ThiefsKnapsackOptions", panel)
    LAM:RegisterOptionControls("ThiefsKnapsackOptions", options)
 end
-
