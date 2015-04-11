@@ -309,7 +309,9 @@ function TK:TimeToFenceReset(t)
 
    return d
 end
-SLASH_COMMANDS["/tk.fencetime"] = function() TK:TimeToFenceReset() end
+SLASH_COMMANDS["/tk.fencetime"] = function()
+   prnd("Fence time = ", TK:TimeToFenceReset())
+end
 
 function TK:FenceReset()
    TK.saved.fence_start = 0
