@@ -12,6 +12,28 @@ local panel = {
    registerForRefresh = true,
 }
 
+local anchors = {
+   "Bottom Left",
+   "Bottom Right",
+   "Bottom",
+   "Left",
+   "Right",
+   "Top Left",
+   "Top Right",
+   "Top",
+}
+
+local text_to_anchor = {
+   ["Bottom Left"] = BOTTOMLEFT,
+   ["Bottom Right"] = BOTTOMRIGHT,
+   ["Bottom"] = BOTTOM,
+   ["Left"] = LEFT,
+   ["Right"] = RIGHT,
+   ["Top Left"] = TOPLEFT,
+   ["Top Right"] = TOPRIGHT,
+   ["Top"] = TOP,
+}
+
 local options = {
    { type = "header",
      name = "Fields", },
@@ -64,6 +86,7 @@ local options = {
    { type = "checkbox",
      name = "Show the Bounty Reset Clock",
      tooltip = "",
+     disabled = function() return TK.saved.dshow.BountyTimer; end,
      getFunc = function() return TK.saved.show.BountyTimer; end,
      setFunc = function(x)
         TK.saved.show.BountyTimer = x
@@ -76,6 +99,7 @@ local options = {
    { type = "checkbox",
      name = "Show bounty",
      tooltip = "Show your current bounty",
+     disabled = function() return TK.saved.dshow.Bounty; end,
      getFunc = function() return TK.saved.show.Bounty; end,
      setFunc = function(x)
         TK.saved.show.Bounty = x
@@ -181,6 +205,25 @@ local options = {
              TK:UpdateControls()
           end,
           warning = "Best to reload the UI after adjusting this.",
+        },
+        { type = "checkbox",
+          name = "Show background",
+          tooltip = "If this is unchecked, the background will not be displayed",
+          getFunc = function() return TK.saved.show.Background end,
+          setFunc = function(x)
+             TK.saved.show.Background = x
+             TK:UpdateControls()
+          end,
+        },
+        { type = "dropdown",
+          name = "Anchor",
+          tooltip = "",
+          choices = anchors,
+          getFunc = function() return anchors[TK.saved.anchor] end,
+          setFunc = function(x)
+             TK.saved.anchor = text_to_anchor[x]
+             TK:ReAnchor()
+          end,
         },
         { type = "button",
           name = "Reload UI",

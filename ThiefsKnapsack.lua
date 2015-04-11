@@ -3,6 +3,7 @@ ThiefsKnapsack = {
    version = "1",
 
    defaults = {
+      anchor = TOPLEFT,
       x = 0,
       y = 0,
       scale = 1,
@@ -23,6 +24,7 @@ ThiefsKnapsack = {
          Average = false,
          Quality = true,
          Estimate = true,
+         Background = true,
       },
       dshow = {
          Bounty = true,
@@ -452,6 +454,13 @@ local controls = {
    {"Quality",     10, "0.00",     "/esoui/art/crafting/smithing_tabicon_improve_up.dds"},
 }
 
+function TK:ReAnchor()
+   local w = TK.window
+
+   w:ClearAnchors()
+   w:SetAnchor(TK.saved.anchor, GuiRoot, TK.saved.anchor, 0, 0)
+end
+
 function TK:UpdateControls()
    local w = TK.window
    local last
@@ -509,6 +518,14 @@ function TK:UpdateControls()
          w.bar[i]:SetParent(nil)
       end
    end
+
+   if(TK.saved.show.Background) then
+      w.bg:SetCenterColor(0, 0, 0, 1)
+      w.bg:SetEdgeColor(0, 0, 0, 1)
+   else
+      w.bg:SetCenterColor(0, 0, 0, 0)
+      w.bg:SetEdgeColor(0, 0, 0, 0)
+   end
 end
 
 local function onPlayerActivated()
@@ -523,7 +540,7 @@ local function onPlayerActivated()
    w:SetMouseEnabled(true)
    w:SetClampedToScreen(true)
    w:SetClampedToScreenInsets(-2, -4, -2, -4)
-   w:SetAnchor(TOPLEFT, GuiRoot, TOPLEFT, TK.saved.x, TK.saved.y)
+   w:SetAnchor(TK.saved.anchor, GuiRoot, TK.saved.anchor, TK.saved.x, TK.saved.y)
    w:SetHandler("OnMoveStop", TK.SavePosition)
    w:SetResizeToFitDescendents(true)
    TK.window = w
