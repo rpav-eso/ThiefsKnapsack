@@ -24,7 +24,10 @@ ThiefsKnapsack = {
          Quality = true,
          Estimate = true,
       },
-      dshow = { },
+      dshow = {
+         Bounty = true,
+         BountyTimer = true,
+      },
       showBars = true,
 
       options = {
@@ -34,7 +37,6 @@ ThiefsKnapsack = {
 
       bounty_start = 0,
       fence_start = 0,
-      last_fence_count = 0,
    },
 
    delaying = false,
@@ -317,10 +319,10 @@ end
 SLASH_COMMANDS["/tk.fencereset"] = function() TK:FenceReset() end
 
 local function fenceCheck(now, drift)
-   if(TK.saved.last_fence_count < FENCE_MANAGER.totalSells
+   if(TK.last_fence_count < FENCE_MANAGER.totalSells
       and FENCE_MANAGER.sellsUsed == 0) then
       if(TK.saved.fence_start == 0) then
-         TK.saved.last_fence_count = FENCE_MANAGER.totalSells
+         TK.last_fence_count = FENCE_MANAGER.totalSells
          TK.saved.fence_start = GetTimeStamp()
       end
    end
@@ -349,6 +351,8 @@ local function setupTimer()
    TK.lasttick = GetTimeStamp()
    TK.bounty = GetBounty()
    TK:DynamicBountyCheck()
+
+   TK.last_fence_count = FENCE_MANAGER.totalSells - FENCE_MANAGER.sellsUsed
    EVENT_MANAGER:RegisterForUpdate(TK.name.."OnTick", 1000, onTick)
 end
 
