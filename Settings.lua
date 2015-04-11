@@ -9,24 +9,12 @@ local prnd = util.prnd
 local panel = {
    type = "panel",
    name = "Thief's Knapsack",
+   registerForRefresh = true,
 }
 
 local options = {
    { type = "header",
-     name = "Display", },
-   { type = "slider",
-     name = "Scale",
-     min = 75,
-     max = 200,
-     step = 1,
-     getFunc = function() return TK.saved.scale*100; end,
-     setFunc = function(x)
-        TK.saved.scale = x/100
-        TK.window:SetScale(1)
-        TK:UpdateControls()
-        TK.window:SetScale(x/100)
-     end,
-   },
+     name = "Fields", },
    { type = "checkbox",
      name = "Show gold value",
      tooltip = "Display the total gold value of stolen items",
@@ -51,6 +39,46 @@ local options = {
      getFunc = function() return TK.saved.show.Recipes; end,
      setFunc = function(x)
         TK.saved.show.Recipes = x
+        TK:UpdateControls()
+     end,
+   },
+   { type = "checkbox",
+     name = "Show sells (to the fences) remaining",
+     tooltip = "Display the total remaining times you can fence items",
+     getFunc = function() return TK.saved.show.SellsLeft; end,
+     setFunc = function(x)
+        TK.saved.show.SellsLeft = x
+        TK:UpdateControls()
+     end,
+   },
+   { type = "checkbox",
+     name = "...also show launders remaining",
+     tooltip = "Display the total remaining times you can launder items",
+     disabled = function() return not TK.saved.show.SellsLeft end,
+     getFunc = function() return TK.saved.show.LaundersLeft end,
+     setFunc = function(x)
+        TK.saved.show.LaundersLeft = x
+        TK:UpdateDisplay()
+     end,
+   },
+   { type = "checkbox",
+     name = "Show the Bounty Reset Clock",
+     tooltip = "",
+     getFunc = function() return TK.saved.show.BountyTimer; end,
+     setFunc = function(x)
+        TK.saved.show.BountyTimer = x
+        TK:UpdateControls()
+     end,
+   },
+   { type = "description",
+     text = "|cFF0000Note:|r The Bounty Clock is an |c00FFFFestimate|r, and may be off by up to |c00FFFFminutes|r.",
+   },
+   { type = "checkbox",
+     name = "Show bounty",
+     tooltip = "Show your current bounty",
+     getFunc = function() return TK.saved.show.Bounty; end,
+     setFunc = function(x)
+        TK.saved.show.Bounty = x
         TK:UpdateControls()
      end,
    },
@@ -111,6 +139,72 @@ local options = {
         TK:CalcBagGoods()
         TK:UpdateDisplay()
      end,
+   },
+   { type = "checkbox",
+     name = "Dynamic bounty/timer",
+     tooltip = "Show and hide the bounty and bounty timer automatically, when there is bounty",
+     getFunc = function() return TK.saved.showBountyDynamic; end,
+     setFunc = function(x)
+        TK.saved.dshow.Bounty = x
+        TK.saved.dshow.BountyTimer = x
+        if(x) then
+           TK:DynamicBountyCheck()
+        else
+           TK:UpdateControls()
+        end
+     end,
+   },
+
+   { type = "submenu",
+     name = "Display",
+     controls = {
+        { type = "slider",
+          name = "Scale",
+          min = 75,
+          max = 200,
+          step = 1,
+          getFunc = function() return TK.saved.scale*100; end,
+          setFunc = function(x)
+             TK.saved.scale = x/100
+             TK.window:SetScale(1)
+             TK:UpdateControls()
+             TK.window:SetScale(x/100)
+          end,
+          warning = "Best to reload the UI after adjusting this.",
+        },
+        { type = "checkbox",
+          name = "Compact alignment",
+          tooltip = "If checked, the bar will be more compact, but the size will fluctuate as the numbers change",
+          getFunc = function() return TK.saved.compactMode; end,
+          setFunc = function(x)
+             TK.saved.compactMode = x
+             TK:UpdateControls()
+          end,
+          warning = "Best to reload the UI after adjusting this.",
+        },
+        { type = "button",
+          name = "Reload UI",
+          func = function() ReloadUI() end,
+        },
+     },
+   },
+   
+   { type = "submenu",
+     name = "Experimental",
+     controls = {
+        { type = "description",
+          text = "|cFF0000Experimental.|r  Anything here hasn't been fully tested and probably does not work!  |c00FFFFUse at your own risk!|r", },
+
+        { type = "checkbox",
+          name = "Show the Fence Reset Clock",
+          tooltip = "",
+          getFunc = function() return TK.saved.show.FenceTimer; end,
+          setFunc = function(x)
+             TK.saved.show.FenceTimer = x
+             TK:UpdateControls()
+          end,
+        },
+     },
    },
 }
 

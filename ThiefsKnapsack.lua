@@ -9,24 +9,38 @@ ThiefsKnapsack = {
       border = 10,
       hidden = false,
 
+      compactMode = false,
+
       show = {
          Value = true,
          Count = true,
+         SellsLeft = true,
+         LaundersLeft = true,
+         FenceTimer = false,
+         BountyTimer = false,
+         Bounty = false,
          Recipes = false,
          Average = false,
          Quality = true,
          Estimate = true,
       },
+      dshow = { },
       showBars = true,
 
       options = {
          nojunk = true,
          sep_recipe = false,
       },
+
+      bounty_start = 0,
+      fence_start = 0,
+      last_fence_count = 0,
    },
 
    delaying = false,
    quality = { [0] = 0, 0, 0, 0, 0, 0 },
+
+   dshow = { },
 }
 local TK = ThiefsKnapsack
 
@@ -85,6 +99,19 @@ function TK:CalcBagGoods()
    end
 end
 
+function TK:DelayedCalcGoods()
+   if(TK.delaying) then return end
+
+   TK.delaying = true
+   EVENT_MANAGER:RegisterForUpdate(TK.name.."DelayedCalc", 250,
+                                   function()
+                                      EVENT_MANAGER:UnregisterForUpdate(TK.name.."DelayedCalc")
+                                      TK.delaying = false
+                                      TK:CalcBagGoods()
+                                      TK:UpdateDisplay()
+   end)
+end
+
 function TK:SavePosition()
    TK.saved.x = TK.window:GetLeft()
    TK.saved.y = TK.window:GetTop()
@@ -92,6 +119,16 @@ end
 
 function TK:UpdateDisplay()
    local w = TK.window
+   local sellsLeft = FENCE_MANAGER.totalSells - FENCE_MANAGER.sellsUsed
+   local laundersLeft = FENCE_MANAGER.totalLaunders - FENCE_MANAGER.laundersUsed
+
+   if(TK.saved.show.LaundersLeft) then
+      w.l_sellsleft:SetText(string.format("%d/%d", sellsLeft, laundersLeft))
+   else
+      w.l_sellsleft:SetText(string.format("%d", sellsLeft))
+   end
+
+   w.l_bounty:SetText(string.format("%d", GetReducedBountyPayoffAmount()))
 
    if(TK.itemCount < 1) then
       w.l_value:SetText(string.format("%d", 0))
@@ -110,8 +147,7 @@ function TK:UpdateDisplay()
       w.l_recipes:SetText(string.format("%d", TK.recipeCount))
       w.l_average:SetText(string.format("%.2f", TK.totalValue/TK.itemCount))
       w.l_estimate:SetText(string.format("%d",
-                                         math.floor(TK.totalValue/TK.itemCount) *
-                                            (FENCE_MANAGER.totalSells - FENCE_MANAGER.sellsUsed)))
+                                         math.floor(TK.totalValue/TK.itemCount) * sellsLeft))
       w.l_quality:SetText(string.format("%.2f", TK.totalQual/TK.itemCount))
 
       for i = 0,5 do
@@ -141,20 +177,14 @@ end
 local function onSlotUpdate(evCode, bagId, slotId, isNew, isc, reason)
    if(TK.delaying) then return end
    if(bagId ~= INVENTORY_BACKPACK) then return end
+   if(isNew) then return end
 
    local slot = PLAYER_INVENTORY.inventories[bagId].slots[slotId]
    if(not slot or not slot.stolen) then return end
 
    -- All right, we've got some bag management going on, so don't
    -- update every time.
-   TK.delaying = true
-   EVENT_MANAGER:RegisterForUpdate(TK.name, 1000,
-                                   function()
-                                      EVENT_MANAGER:UnregisterForUpdate(TK.name)
-                                      TK.delaying = false
-                                      TK:CalcBagGoods()
-                                      TK:UpdateDisplay()
-   end)
+   TK:DelayedCalcGoods()
 end
 
 local function onLoot(evc, receiver, name, count, isc, itemtype, isself, ispicked)
@@ -163,16 +193,14 @@ local function onLoot(evc, receiver, name, count, isc, itemtype, isself, ispicke
    -- No way to tell if the item was stolen!  IsItemLinkStolen()
    -- doesn't return true.  Doing this in onSlotUpdate() means we
    -- can't tell if it's being added to a stack, or splitting a stack.
-   TK:CalcBagGoods()
-   TK:UpdateDisplay()
+   TK:DelayedCalcGoods()
 end
 
 local function onLaunder(evc, res)
    if(res ~= ITEM_LAUNDER_RESULT_SUCCESS) then return end
 
    -- Likewise, no apparent way to get what was laundered, etc
-   TK:CalcBagGoods()
-   TK:UpdateDisplay()
+   TK:DelayedCalcGoods()
 end
 
 local function onFence(status)
@@ -205,6 +233,123 @@ local function onRemoved(bagId, slotIndex, slot)
 
    incrGoodsFromSlot(slot, -1)
    TK:UpdateDisplay()
+end
+
+local function resetBountyWatch()
+   TK.bounty = GetBounty()
+
+   if(TK.bounty == 0) then
+      TK.saved.bounty_start = 0
+      TK.window.l_bountytimer:SetText("00:00")
+   else
+      TK.saved.bounty_start = GetTimeStamp()
+   end
+end
+
+local function bountyCheck(now, drift)
+   if(TK.saved.bounty_start == 0) then return end
+
+   local bounty = GetBounty()
+
+   if(drift ~= 0) then
+      TK.saved.bounty_start = TK.saved.bounty_start + drift
+   end
+
+   if(bounty ~= TK.bounty) then
+      resetBountyWatch()
+      TK:UpdateDisplay()
+      TK:DynamicBountyCheck()
+   end
+
+   local estimate = ((bounty / 5) * 180) - (now - TK.saved.bounty_start)
+
+   if(estimate < 0) then
+      TK.window.l_bountytimer:SetText("00:00")
+   else
+      local timestr = FormatTimeSeconds(estimate, TIME_FORMAT_STYLE_COLONS,
+                                        TIME_FORMAT_DIRECTION_DESCENDING,
+                                        TIME_FORMAT_PRECISION_SECONDS)
+      TK.window.l_bountytimer:SetText(timestr)
+   end
+end
+
+function TK:DynamicBountyCheck()
+   if(not TK.saved.dshow.Bounty) then return; end
+
+   value = GetBounty()
+
+   if(value == 0) then
+      TK.dshow.Bounty = false
+      TK.dshow.BountyTimer = false
+   else
+      TK.dshow.Bounty = true
+      TK.dshow.BountyTimer = true
+   end
+
+   TK:UpdateDisplay()
+   TK:UpdateControls()
+end
+
+local function onBountyChange(evc, old, new)
+   resetBountyWatch()
+   if((new == 0) or (old == 0 and new ~= 0)) then
+      TK:DynamicBountyCheck()
+   end
+end
+
+function TK:TimeToFenceReset(t)
+   if(TK.saved.fence_start == 0) then return 0; end
+
+   t = t or GetTimeStamp()
+
+   local one_day = (24*60*60)
+   local d = one_day - ((t - TK.saved.fence_start) % one_day)
+
+   return d
+end
+SLASH_COMMANDS["/tk.fencetime"] = function() TK:TimeToFenceReset() end
+
+function TK:FenceReset()
+   TK.saved.fence_start = 0
+   TK.window.l_fencetimer:SetText("00:00:00")
+   TK:UpdateDisplay()
+end
+SLASH_COMMANDS["/tk.fencereset"] = function() TK:FenceReset() end
+
+local function fenceCheck(now, drift)
+   if(TK.saved.last_fence_count < FENCE_MANAGER.totalSells
+      and FENCE_MANAGER.sellsUsed == 0) then
+      if(TK.saved.fence_start == 0) then
+         TK.saved.last_fence_count = FENCE_MANAGER.totalSells
+         TK.saved.fence_start = GetTimeStamp()
+      end
+   end
+
+   if(TK.saved.fence_start > 0) then
+      local timestr =
+         FormatTimeSeconds(TK:TimeToFenceReset(),
+                           TIME_FORMAT_STYLE_COLONS,
+                           TIME_FORMAT_DIRECTION_DESCENDING,
+                           TIME_FORMAT_PRECISION_SECONDS)
+      TK.window.l_fencetimer:SetText(timestr)
+   end
+end
+
+local function onTick()
+   local now = GetTimeStamp()
+   local drift = (now - TK.lasttick - 1)
+
+   bountyCheck(now, drift)
+   fenceCheck(now, drift)
+
+   TK.lasttick = now
+end
+
+local function setupTimer()
+   TK.lasttick = GetTimeStamp()
+   TK.bounty = GetBounty()
+   TK:DynamicBountyCheck()
+   EVENT_MANAGER:RegisterForUpdate(TK.name.."OnTick", 1000, onTick)
 end
 
 local function onLoaded(ev, addon)
@@ -248,19 +393,10 @@ local function make_control(name, rel, offset, str, dds)
       label:SetText(str)
       label:SetHorizontalAlignment(TEXT_ALIGN_LEFT)
       label:SetWrapMode(TEXT_WRAP_MODE_ELLIPSIS)
-      label:SetDimensionConstraints(label:GetTextWidth(), 0, 0, 0)
       return label
    end
 
-   local make_space = function(name, rel, width)
-      local space = WM:CreateControl(pfx("Space"), w.bg, CT_CONTROL)
-      space:SetDimensions(width, height)
-      space:SetAnchor(LEFT, rel, RIGHT, 0, 0)
-      return space
-   end
-
-
-   local icon = make_icon(name, rel, offset, dds)
+   local icon = make_icon(name, rel, offset * TK.saved.scale, dds)
    local label = make_label(name, icon, 8, str)
 
    name = string.lower(name)
@@ -295,13 +431,19 @@ local function make_bars(rel)
    w.bar[5] = make_bar("5", 238, 202,  42)        -- Yellow / Legendary
 end
 
+-- White fence icon: "/esoui/art/icons/servicetooltipicons/servicetooltipicon_fence.dds"
+
 local controls = {
-   {"Value",     0, "00000",  "/esoui/art/currency/currency_gold.dds"},
-   {"Count",    14, "000",    "/esoui/art/inventory/inventory_stolenitem_icon.dds" },
-   {"Recipes",  10, "000",    "/esoui/art/icons/quest_book_001.dds" },
-   {"Average",  10, "000.00", "/esoui/art/vendor/vendor_tabicon_fence_up.dds"},
-   {"Estimate", 10, "00000",  "/esoui/art/vendor/vendor_tabicon_fence_up.dds"},
-   {"Quality",  10, "0.00",   "/esoui/art/crafting/smithing_tabicon_improve_up.dds"},
+   {"Value",        0, "00000",    "/esoui/art/currency/currency_gold.dds"},
+   {"Count",       14, "000",      "/esoui/art/inventory/inventory_stolenitem_icon.dds"},
+   {"Recipes",     10, "000",      "/esoui/art/icons/quest_book_001.dds"},
+   {"SellsLeft",   10, "000/000",  "/esoui/art/vendor/vendor_tabicon_sell_up.dds"},
+   {"FenceTimer",  10, "00:00:00", "/esoui/art/miscellaneous/gamepad/gp_icon_timer32.dds"},
+   {"BountyTimer", 10, "00:00",    "/esoui/art/miscellaneous/gamepad/gp_icon_timer32.dds", { 255, 0, 0 }},
+   {"Bounty",      10, "000",      "/esoui/art/currency/currency_gold.dds", { 255, 0, 0 }},
+   {"Average",     10, "000.00",   "/esoui/art/vendor/vendor_tabicon_fence_up.dds"},
+   {"Estimate",    10, "00000",    "/esoui/art/vendor/vendor_tabicon_fence_up.dds"},
+   {"Quality",     10, "0.00",     "/esoui/art/crafting/smithing_tabicon_improve_up.dds"},
 }
 
 function TK:UpdateControls()
@@ -314,22 +456,34 @@ function TK:UpdateControls()
       local icon = w["icon_"..name]
       local label = w["l_"..name]
 
-      if(TK.saved.show[v[1]]) then
+      if((not TK.saved.dshow[v[1]] and TK.saved.show[v[1]]) or 
+         (TK.saved.dshow[v[1]] and TK.dshow[v[1]])) then
          label:SetParent(w.bg)
          icon:SetParent(w.bg)
          icon:ClearAnchors()
 
+         if(not TK.saved.compactMode) then
+            local text = label:GetText()
+            label:SetText(v[3])
+            label:SetDimensionConstraints(label:GetTextWidth(), 0, 0, 0)
+            label:SetText(text)
+         else
+            label:SetDimensionConstraints(0,0,0,0)
+            label:SetWidth(0)
+         end
+
+         if(v[5]) then
+            local color = v[5]
+            icon:SetColor(color[1], color[2], color[3])
+         end
+
          if(last) then
-            icon:SetAnchor(LEFT, last, RIGHT, v[2], 0)
+            icon:SetAnchor(LEFT, last, RIGHT, v[2]*TK.saved.scale, 0)
          else
             icon:SetAnchor(LEFT, w.bg, LEFT, TK.saved.border, 0)
          end
          last = label
 
-         local text = label:GetText()
-         label:SetText(v[3])
-         label:SetDimensionConstraints(label:GetTextWidth(), 0, 0, 0)
-         label:SetText(text)
       else
          icon:SetParent(nil)
          label:SetParent(nil)
@@ -343,7 +497,7 @@ function TK:UpdateControls()
 
       w.bar[0]:ClearAnchors()
       w.bar[0]:SetAnchor(BOTTOMLEFT, last, BOTTOMRIGHT,
-                         8*TK.saved.scale, -4*TK.saved.scale)
+                         8*TK.saved.scale/2, -4*TK.saved.scale)
    else
       for i = 0,5 do
          w.bar[i]:SetParent(nil)
@@ -393,6 +547,7 @@ local function onPlayerActivated()
    EVENT_MANAGER:RegisterForEvent(TK.name, EVENT_INVENTORY_SINGLE_SLOT_UPDATE, onSlotUpdate)
    EVENT_MANAGER:RegisterForEvent(TK.name, EVENT_LOOT_RECEIVED, onLoot)
    EVENT_MANAGER:RegisterForEvent(TK.name, EVENT_ITEM_LAUNDER_RESULT, onLaunder)
+   --EVENT_MANAGER:RegisterForEvent(TK.name, EVENT_END_CRAFTING_STATION_INTERACT, ...)
    EVENT_MANAGER:RegisterForEvent(TK.name, EVENT_JUSTICE_STOLEN_ITEMS_REMOVED, onApprehended)
 
    -- EVENT_CLOSE_FENCE doens't seem to fire, instead we get EVENT_OPEN_FENCE and EVENT_CLOSE_STORE.
@@ -401,8 +556,11 @@ local function onPlayerActivated()
    EVENT_MANAGER:RegisterForEvent(TK.name, EVENT_SELL_RECEIPT, onSold)
 
    SHARED_INVENTORY:RegisterCallback("SlotRemoved", onRemoved)
+
+   EVENT_MANAGER:RegisterForEvent(TK.name, EVENT_JUSTICE_BOUNTY_PAYOFF_AMOUNT_UPDATED, onBountyChange)
+
+   setupTimer()
 end
 
 EVENT_MANAGER:RegisterForEvent(TK.name, EVENT_ADD_ON_LOADED, onLoaded)
 EVENT_MANAGER:RegisterForEvent(TK.name, EVENT_PLAYER_ACTIVATED, onPlayerActivated)
-
