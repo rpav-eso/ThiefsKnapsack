@@ -13,36 +13,21 @@ local panel = {
 }
 
 local anchors = {
-   "Bottom Left",
-   "Bottom Right",
-   "Bottom",
+   "Center",
    "Left",
    "Right",
-   "Top Left",
-   "Top Right",
-   "Top",
 }
 
 local anchor_to_text = {
-   [BOTTOMLEFT] = "Bottom Left",
-   [BOTTOMRIGHT] = "Bottom Right",
-   [BOTTOM] = "Bottom",
-   [LEFT] = "Left",
-   [RIGHT] = "Right",
-   [TOPLEFT] = "Top Left",
-   [TOPRIGHT] = "Top Right",
-   [TOP] = "Top",
+   [TOPLEFT] = "Left",
+   [TOPRIGHT] = "Right",
+   [TOP] = "Center",
 }
 
 local text_to_anchor = {
-   ["Bottom Left"] = BOTTOMLEFT,
-   ["Bottom Right"] = BOTTOMRIGHT,
-   ["Bottom"] = BOTTOM,
-   ["Left"] = LEFT,
-   ["Right"] = RIGHT,
-   ["Top Left"] = TOPLEFT,
-   ["Top Right"] = TOPRIGHT,
-   ["Top"] = TOP,
+   ["Left"] = TOPLEFT,
+   ["Right"] = TOPRIGHT,
+   ["Center"] = TOP,
 }
 
 local options = {
@@ -227,13 +212,23 @@ local options = {
           end,
         },
         { type = "dropdown",
-          name = "Anchor",
-          tooltip = "",
+          name = "Alignment",
+          tooltip = "Set which corner of the screen the bar is relative to",
           choices = anchors,
           getFunc = function() return anchor_to_text[TK.saved.anchor] end,
           setFunc = function(x)
              TK.saved.anchor = text_to_anchor[x]
              TK:ReAnchor()
+             TK:SavePosition()
+          end,
+        },
+        { type = "checkbox",
+          name = "Snap to center",
+          tooltip = "If this is checked and you use Center alignment, the bar will snap to the center",
+          getFunc = function() return TK.saved.snapCenter end,
+          setFunc = function(x)
+             TK.saved.snapCenter = x
+             TK:SavePosition()
           end,
         },
         { type = "button",

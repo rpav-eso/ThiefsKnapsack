@@ -9,6 +9,7 @@ ThiefsKnapsack = {
       scale = 1,
       border = 10,
       hidden = false,
+      snapCenter = true,
 
       compactMode = false,
 
@@ -117,8 +118,26 @@ function TK:DelayedCalcGoods()
 end
 
 function TK:SavePosition()
-   TK.saved.x = TK.window:GetLeft()
-   TK.saved.y = TK.window:GetTop()
+   local w = TK.window
+   local a = TK.saved.anchor
+   local x, y
+
+   y = w:GetTop()
+
+   if(a == RIGHT or a == TOPRIGHT) then
+      x = w:GetRight()
+   else
+      x = w:GetLeft()
+   end
+
+   if(TK.saved.snapCenter and a == TOP) then
+      x = 0
+      w:ClearAnchors()
+      w:SetAnchor(TK.saved.anchor, GuiRoot, TK.saved.anchor, x, y)      
+   end
+
+   TK.saved.x = x
+   TK.saved.y = y
 end
 
 function TK:UpdateDisplay()
