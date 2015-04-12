@@ -23,6 +23,17 @@ local anchors = {
    "Top",
 }
 
+local anchor_to_text = {
+   [BOTTOMLEFT] = "Bottom Left",
+   [BOTTOMRIGHT] = "Bottom Right",
+   [BOTTOM] = "Bottom",
+   [LEFT] = "Left",
+   [RIGHT] = "Right",
+   [TOPLEFT] = "Top Left",
+   [TOPRIGHT] = "Top Right",
+   [TOP] = "Top",
+}
+
 local text_to_anchor = {
    ["Bottom Left"] = BOTTOMLEFT,
    ["Bottom Right"] = BOTTOMRIGHT,
@@ -219,7 +230,7 @@ local options = {
           name = "Anchor",
           tooltip = "",
           choices = anchors,
-          getFunc = function() return anchors[TK.saved.anchor] end,
+          getFunc = function() return anchor_to_text[TK.saved.anchor] end,
           setFunc = function(x)
              TK.saved.anchor = text_to_anchor[x]
              TK:ReAnchor()
