@@ -132,12 +132,12 @@ function TK:UpdateDisplay()
       w.l_sellsleft:SetText(string.format("%d", sellsLeft))
    end
 
+   w.l_value:SetText(string.format("%d", TK.totalValue))
+   w.l_count:SetText(string.format("%d", TK.itemCount))
+   w.l_recipes:SetText(string.format("%d", TK.recipeCount))
    w.l_bounty:SetText(string.format("%d", GetReducedBountyPayoffAmount()))
 
    if(TK.itemCount < 1) then
-      w.l_value:SetText(string.format("%d", 0))
-      w.l_count:SetText(string.format("%d", 0))
-      w.l_recipes:SetText(string.format("%d", 0))
       w.l_average:SetText(string.format("%.2f", 0))
       w.l_estimate:SetText(string.format("%d", 0))
       w.l_quality:SetText(string.format("%.2f", 0))
@@ -146,9 +146,6 @@ function TK:UpdateDisplay()
          w.bar[i]:SetHeight(0)
       end
    else
-      w.l_value:SetText(string.format("%d", TK.totalValue))
-      w.l_count:SetText(string.format("%d", TK.itemCount))
-      w.l_recipes:SetText(string.format("%d", TK.recipeCount))
       w.l_average:SetText(string.format("%.2f", TK.totalValue/TK.itemCount))
       w.l_estimate:SetText(string.format("%d",
                                          math.floor(TK.totalValue/TK.itemCount) * sellsLeft))
@@ -327,8 +324,9 @@ local function fenceCheck(now, drift)
       and FENCE_MANAGER.sellsUsed == 0) then
       if(TK.saved.fence_start == 0) then
          TK.last_fence_count = FENCE_MANAGER.totalSells
-         TK.saved.fence_start = GetTimeStamp()
+         TK.saved.fence_start = now
       end
+      TK:UpdateDisplay()
    end
 
    if(TK.saved.fence_start > 0) then
