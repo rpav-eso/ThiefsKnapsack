@@ -16,6 +16,7 @@ ThiefsKnapsack = {
       show = {
          Value = true,
          Count = true,
+         Legerdemain = false,
          SellsLeft = true,
          LaundersLeft = true,
          FenceTimer = false,
@@ -45,6 +46,8 @@ ThiefsKnapsack = {
    delaying = false,
    quality = { [0] = 0, 0, 0, 0, 0, 0 },
 
+   legerdemain = 0,
+
    dshow = { },
 }
 local TK = ThiefsKnapsack
@@ -70,17 +73,17 @@ local function isRecipe(itemtype)
 end
 
 local function incrGoods(count, quality, itemtype, isJunk, value)
-   if(not (TK.saved.options.nojunk and isJunk) and
-      not (TK.saved.options.sep_recipe and isRecipe(itemtype)))
-   then
-      TK.itemCount = TK.itemCount + count
-      TK.totalQual = TK.totalQual + (quality * count)
-      TK.totalValue = TK.totalValue + (value * count)
-      TK.quality[quality] = (TK.quality[quality] or 0) + count
-   end
+   if(not (TK.saved.options.nojunk and isJunk)) then
+      if(not (TK.saved.options.sep_recipe and isRecipe(itemtype))) then
+         TK.itemCount        = math.max(0, TK.itemCount + count)
+         TK.totalQual        = math.max(0, TK.totalQual + (quality * count))
+         TK.totalValue       = math.max(0, TK.totalValue + (value * count))
+         TK.quality[quality] = math.max(0, (TK.quality[quality] or 0) + count)
+      end
 
-   if(isRecipe(itemtype)) then
-      TK.recipeCount = TK.recipeCount + 1
+      if(isRecipe(itemtype)) then
+         TK.recipeCount = math.max(0, TK.recipeCount + count)
+      end
    end
 end
 
@@ -140,6 +143,18 @@ function TK:SavePosition()
    TK.saved.y = y
 end
 
+local function updateLegerdemainText()
+   if(TK.legerdemain == 0) then
+      TK.window.l_legerdemain:SetText("??")
+      return
+   end
+
+   local name, rank = GetSkillLineInfo(SKILL_TYPE_WORLD, TK.legerdemain)
+   local lrxp, nrxp, cxp = GetSkillLineXPInfo(SKILL_TYPE_WORLD, TK.legerdemain)
+   local str = util.str("(|cEECA2A", rank, "|r) ", cxp-lrxp, "/", nrxp-lrxp)
+   TK.window.l_legerdemain:SetText(str)
+end
+
 function TK:UpdateDisplay()
    local w = TK.window
    local sellsLeft = FENCE_MANAGER.totalSells - FENCE_MANAGER.sellsUsed
@@ -155,6 +170,8 @@ function TK:UpdateDisplay()
    w.l_count:SetText(string.format("%d", TK.itemCount))
    w.l_recipes:SetText(string.format("%d", TK.recipeCount))
    w.l_bounty:SetText(string.format("%d", GetReducedBountyPayoffAmount()))
+
+   updateLegerdemainText()
 
    if(TK.itemCount < 1) then
       w.l_average:SetText(string.format("%.2f", 0))
@@ -241,11 +258,9 @@ end
 local function onSold(evc, il, count, money)
    if(not TK.isFencing) then return end
 
-   local quality = GetItemLinkQuality(il)
-   local itemtype = GetItemLinkItemType(il)
-
-   incrGoods(-count, quality, itemtype, false, money/count)
-   TK:UpdateDisplay()
+   -- There's no way to tell if the itemlink is junk,
+   -- so we can't tell whether to (un)track it or not
+   TK:DelayedCalcGoods()
 end
 
 local function onRemoved(bagId, slotIndex, slot)
@@ -377,6 +392,39 @@ local function setupTimer()
    EVENT_MANAGER:RegisterForUpdate(TK.name.."OnTick", 1000, onTick)
 end
 
+
+-- this is idiotic
+local function findLegerdemain()
+   local nsl = GetNumSkillLines(SKILL_TYPE_WORLD)
+   for i = 1,nsl do
+      local name, rank = GetSkillLineInfo(SKILL_TYPE_WORLD, i)
+      -- There has _got_ to be a less hacktastic way to get this
+      if(name == "Legerdemain" or name == "Lug und Trug^N" or name == "Escroquerie") then
+         TK.legerdemain = i
+         break
+      end
+   end
+end
+
+local function onSkillXpUpdate(evc, skillType, skillIndex, reason, rank, prev, cur)
+   if(TK.legerdemain == 0) then return end
+
+   if(skillType == SKILL_TYPE_WORLD and skillIndex == TK.legerdemain) then
+      updateLegerdemainText()
+   end
+end
+
+local function onSkillLineAdded(evc, skillType, skillIndex)
+   findLegerdemain()
+end
+
+local function setupXpWatch()
+   findLegerdemain()
+
+   EVENT_MANAGER:RegisterForEvent(TK.name, EVENT_SKILL_XP_UPDATE, onSkillXpUpdate)
+   EVENT_MANAGER:RegisterForEvent(TK.name, EVENT_SKILL_LINE_ADDED, onSkillLineAdded)
+end
+
 local function onLoaded(ev, addon)
    if(addon ~= TK.name) then return end
 
@@ -388,7 +436,7 @@ end
 
 local function pfx(x) return TK.name.."Window"..(x or "") end
 
-local function make_control(name, rel, offset, str, dds)
+local function make_control(name, rel, lrel, offset, str, dds)
    local w = TK.window
 
    local make_icon = function(name, rel, offset, dds)
@@ -422,7 +470,7 @@ local function make_control(name, rel, offset, str, dds)
    end
 
    local icon = make_icon(name, rel, offset * TK.saved.scale, dds)
-   local label = make_label(name, icon, 8, str)
+   local label = make_label(name, icon, math.min(lrel, lrel * TK.saved.scale), str)
 
    name = string.lower(name)
 
@@ -459,16 +507,17 @@ end
 -- White fence icon: "/esoui/art/icons/servicetooltipicons/servicetooltipicon_fence.dds"
 
 local controls = {
-   {"Value",        0, "00000",    "/esoui/art/currency/currency_gold.dds"},
-   {"Count",       14, "000",      "/esoui/art/inventory/inventory_stolenitem_icon.dds"},
-   {"Recipes",     10, "000",      "/esoui/art/icons/quest_book_001.dds"},
-   {"SellsLeft",   10, "000/000",  "/esoui/art/vendor/vendor_tabicon_sell_up.dds"},
-   {"FenceTimer",  10, "00:00:00", "/esoui/art/miscellaneous/gamepad/gp_icon_timer32.dds"},
-   {"BountyTimer", 10, "00:00",    "/esoui/art/miscellaneous/gamepad/gp_icon_timer32.dds", { 255, 0, 0 }},
-   {"Bounty",      10, "000",      "/esoui/art/currency/currency_gold.dds", { 255, 0, 0 }},
-   {"Average",     10, "000.00",   "/esoui/art/vendor/vendor_tabicon_fence_up.dds"},
-   {"Estimate",    10, "00000",    "/esoui/art/vendor/vendor_tabicon_fence_up.dds"},
-   {"Quality",     10, "0.00",     "/esoui/art/crafting/smithing_tabicon_improve_up.dds"},
+   {"Value",        0,  8, "00000",    "/esoui/art/currency/currency_gold.dds"},
+   {"Count",       14,  8, "000",      "/esoui/art/inventory/inventory_stolenitem_icon.dds"},
+   {"Recipes",     10,  8, "000",      "/esoui/art/icons/quest_book_001.dds"},
+   {"Legerdemain", 10,  8, "(00) 0000/0000", "/esoui/art/icons/mapkey/mapkey_fence.dds", { 0, 255, 0 }},
+   {"SellsLeft",   10,  6, "000/000",  "/esoui/art/vendor/vendor_tabicon_sell_up.dds"},
+   {"FenceTimer",  10,  8, "00:00:00", "/esoui/art/miscellaneous/gamepad/gp_icon_timer32.dds"},
+   {"BountyTimer", 10,  8, "00:00",    "/esoui/art/miscellaneous/gamepad/gp_icon_timer32.dds", { 255, 0, 0 }},
+   {"Bounty",      10,  8, "000",      "/esoui/art/currency/currency_gold.dds", { 255, 0, 0 }},
+   {"Average",     10,  6, "000.00",   "/esoui/art/vendor/vendor_tabicon_fence_up.dds"},
+   {"Estimate",    10,  6, "00000",    "/esoui/art/vendor/vendor_tabicon_fence_up.dds"},
+   {"Quality",     10,  8, "0.00",     "/esoui/art/crafting/smithing_tabicon_improve_up.dds"},
 }
 
 function TK:ReAnchor()
@@ -491,21 +540,23 @@ function TK:UpdateControls()
       if((not TK.saved.dshow[v[1]] and TK.saved.show[v[1]]) or 
          (TK.saved.dshow[v[1]] and TK.dshow[v[1]])) then
          label:SetParent(w.bg)
+         label:ClearAnchors()
+         
          icon:SetParent(w.bg)
          icon:ClearAnchors()
 
          if(not TK.saved.compactMode) then
             local text = label:GetText()
-            label:SetText(v[3])
-            label:SetDimensionConstraints(label:GetTextWidth(), 0, 0, 0)
+            label:SetText(v[4])
+            label:SetDimensionConstraints(label:GetTextWidth()*math.min(1.0,TK.saved.scale), 0, 0, 0)
             label:SetText(text)
          else
             label:SetDimensionConstraints(0,0,0,0)
             label:SetWidth(0)
          end
 
-         if(v[5]) then
-            local color = v[5]
+         if(v[6]) then
+            local color = v[6]
             icon:SetColor(color[1], color[2], color[3])
          end
 
@@ -514,8 +565,9 @@ function TK:UpdateControls()
          else
             icon:SetAnchor(LEFT, w.bg, LEFT, TK.saved.border, 0)
          end
-         last = label
 
+         label:SetAnchor(LEFT, icon, RIGHT, v[3], 0)
+         last = label
       else
          icon:SetParent(nil)
          label:SetParent(nil)
@@ -574,10 +626,12 @@ local function onPlayerActivated()
    -- Controls
    local last
    for i,v in ipairs(controls) do
-      last = make_control(v[1], last, v[2], v[3], v[4])
+      last = make_control(v[1], last, v[2], v[3], v[4], v[5])
    end
 
    make_bars(last)
+
+   findLegerdemain()
 
    TK:CalcBagGoods()
    TK:UpdateControls()
@@ -600,6 +654,7 @@ local function onPlayerActivated()
    EVENT_MANAGER:RegisterForEvent(TK.name, EVENT_JUSTICE_BOUNTY_PAYOFF_AMOUNT_UPDATED, onBountyChange)
 
    setupTimer()
+   setupXpWatch()
 end
 
 EVENT_MANAGER:RegisterForEvent(TK.name, EVENT_ADD_ON_LOADED, onLoaded)

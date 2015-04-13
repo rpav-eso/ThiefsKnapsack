@@ -61,6 +61,15 @@ local options = {
      end,
    },
    { type = "checkbox",
+     name = "Show Legerdemain XP",
+     tooltip = "Because everyone likes to watch the numbers go up",
+     getFunc = function() return TK.saved.show.Legerdemain; end,
+     setFunc = function(x)
+        TK.saved.show.Legerdemain = x
+        TK:UpdateControls()
+     end,
+   },
+   { type = "checkbox",
      name = "Show sells (to the fences) remaining",
      tooltip = "Display the total remaining times you can fence items",
      getFunc = function() return TK.saved.show.SellsLeft; end,
