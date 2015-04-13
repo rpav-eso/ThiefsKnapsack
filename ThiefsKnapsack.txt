@@ -23,4 +23,6 @@ libs\LibAddonMenu-2.0\controls\texture.lua
 util.lua
 ThiefsKnapsack.lua
 Settings.lua
+Start.lua
+
 bindings.xml

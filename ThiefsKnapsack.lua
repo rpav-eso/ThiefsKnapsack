@@ -425,15 +425,6 @@ local function setupXpWatch()
    EVENT_MANAGER:RegisterForEvent(TK.name, EVENT_SKILL_LINE_ADDED, onSkillLineAdded)
 end
 
-local function onLoaded(ev, addon)
-   if(addon ~= TK.name) then return end
-
-   EVENT_MANAGER:UnregisterForEvent(TK.name, EVENT_ADD_ON_LOADED)
-   TK.saved = ZO_SavedVars:New("ThiefsKnapsackVars", 1, nil, TK.defaults)
-
-   TK:RegisterSettings()
-end
-
 local function pfx(x) return TK.name.."Window"..(x or "") end
 
 local function make_control(name, rel, lrel, offset, str, dds)
@@ -470,7 +461,7 @@ local function make_control(name, rel, lrel, offset, str, dds)
    end
 
    local icon = make_icon(name, rel, offset * TK.saved.scale, dds)
-   local label = make_label(name, icon, math.min(lrel, lrel * TK.saved.scale), str)
+   local label = make_label(name, icon, math.min(lrel, TK.saved.scale*lrel), str)
 
    name = string.lower(name)
 
@@ -548,7 +539,7 @@ function TK:UpdateControls()
          if(not TK.saved.compactMode) then
             local text = label:GetText()
             label:SetText(v[4])
-            label:SetDimensionConstraints(label:GetTextWidth()*math.min(1.0,TK.saved.scale), 0, 0, 0)
+            label:SetDimensionConstraints((label:GetTextWidth()*math.min(1.0,TK.saved.scale))+8, 0, 0, 0)
             label:SetText(text)
          else
             label:SetDimensionConstraints(0,0,0,0)
@@ -597,9 +588,7 @@ function TK:UpdateControls()
    end
 end
 
-local function onPlayerActivated()
-   EVENT_MANAGER:UnregisterForEvent(TK.name, EVENT_PLAYER_ACTIVATED)
-
+function TK:BuildUI()
    local w = WM:CreateTopLevelWindow(pfx())
    local border = TK.saved.border
 
@@ -656,6 +645,3 @@ local function onPlayerActivated()
    setupTimer()
    setupXpWatch()
 end
-
-EVENT_MANAGER:RegisterForEvent(TK.name, EVENT_ADD_ON_LOADED, onLoaded)
-EVENT_MANAGER:RegisterForEvent(TK.name, EVENT_PLAYER_ACTIVATED, onPlayerActivated)

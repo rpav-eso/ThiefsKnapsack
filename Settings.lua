@@ -90,7 +90,7 @@ local options = {
    },
    { type = "checkbox",
      name = "Show the Bounty Reset Clock",
-     tooltip = "",
+     tooltip = "(Disabled if \"Dynamic Bounty\" is on in Options, which is the default)",
      disabled = function() return TK.saved.dshow.BountyTimer; end,
      getFunc = function() return TK.saved.show.BountyTimer; end,
      setFunc = function(x)
@@ -103,7 +103,7 @@ local options = {
    },
    { type = "checkbox",
      name = "Show bounty",
-     tooltip = "Show your current bounty",
+     tooltip = "Show your current bounty (disabled if \"Dynamic Bounty\" is on, which is the default)",
      disabled = function() return TK.saved.dshow.Bounty; end,
      getFunc = function() return TK.saved.show.Bounty; end,
      setFunc = function(x)
