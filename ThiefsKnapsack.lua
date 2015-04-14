@@ -359,7 +359,8 @@ function TK:TimeToFenceReset(t)
    return timestr, d
 end
 SLASH_COMMANDS["/tk.fencetime"] = function()
-   prnd("Fence will reset in ", TK:TimeToFenceReset())
+   local str = TK:TimeToFenceReset()
+   prnd("Fence will reset in ", str)
 end
 
 local function fenceCheck(now, drift)
