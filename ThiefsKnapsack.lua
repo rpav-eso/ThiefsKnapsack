@@ -37,10 +37,10 @@ ThiefsKnapsack = {
       options = {
          nojunk = true,
          sep_recipe = false,
+         hide_on_menu = false,
       },
 
       bounty_start = 0,
-      fence_start = 0,
    },
 
    delaying = false,
@@ -49,6 +49,8 @@ ThiefsKnapsack = {
    legerdemain = 0,
 
    dshow = { },
+
+   last_fence_d = 0,
 }
 local TK = ThiefsKnapsack
 
@@ -136,7 +138,7 @@ function TK:SavePosition()
    if(TK.saved.snapCenter and a == TOP) then
       x = 0
       w:ClearAnchors()
-      w:SetAnchor(TK.saved.anchor, GuiRoot, TK.saved.anchor, x, y)      
+      w:SetAnchor(TK.saved.anchor, GuiRoot, TK.saved.anchor, x, y)
    end
 
    TK.saved.x = x
@@ -209,6 +211,13 @@ function TK:toggle()
 
    TK.saved.hidden = not w:IsHidden()
    w:SetHidden(not w:IsHidden())
+end
+
+local function onLayerChange(evc, index, active)
+   if(not TK.saved.options.hide_on_menu) then return end
+
+   -- Is there some CONSTANT for this?
+   TK.window:SetHidden((active ~= 2))
 end
 
 local function onSlotUpdate(evCode, bagId, slotId, isNew, isc, reason)
@@ -333,44 +342,37 @@ local function onBountyChange(evc, old, new)
 end
 
 function TK:TimeToFenceReset(t)
-   if(TK.saved.fence_start == 0) then return 0; end
+   -- Seems to reset at 3am utc
+   local fence_start = 10800
 
    t = t or GetTimeStamp()
 
    local one_day = (24*60*60)
-   local d = one_day - ((t - TK.saved.fence_start) % one_day)
+   local d = one_day - ((t - fence_start) % one_day)
 
-   return d
+   local timestr =
+      FormatTimeSeconds(d, 
+                        TIME_FORMAT_STYLE_COLONS,
+                        TIME_FORMAT_DIRECTION_DESCENDING,
+                        TIME_FORMAT_PRECISION_SECONDS)   
+
+   return timestr, d
 end
 SLASH_COMMANDS["/tk.fencetime"] = function()
-   prnd("Fence time = ", TK:TimeToFenceReset())
+   prnd("Fence will reset in ", TK:TimeToFenceReset())
 end
-
-function TK:FenceReset()
-   TK.saved.fence_start = 0
-   TK.window.l_fencetimer:SetText("00:00:00")
-   TK:UpdateDisplay()
-end
-SLASH_COMMANDS["/tk.fencereset"] = function() TK:FenceReset() end
 
 local function fenceCheck(now, drift)
-   if(TK.last_fence_count < FENCE_MANAGER.totalSells
-      and FENCE_MANAGER.sellsUsed == 0) then
-      if(TK.saved.fence_start == 0) then
-         TK.last_fence_count = FENCE_MANAGER.totalSells
-         TK.saved.fence_start = now
-      end
+   local reset, d = TK:TimeToFenceReset(now)
+   TK.window.l_fencetimer:SetText(reset)
+
+   if(d > TK.last_fence_d) then
+      GetFenceSellTransactionInfo()
+      GetFenceLaunderTransactionInfo()
       TK:UpdateDisplay()
    end
 
-   if(TK.saved.fence_start > 0) then
-      local timestr =
-         FormatTimeSeconds(TK:TimeToFenceReset(),
-                           TIME_FORMAT_STYLE_COLONS,
-                           TIME_FORMAT_DIRECTION_DESCENDING,
-                           TIME_FORMAT_PRECISION_SECONDS)
-      TK.window.l_fencetimer:SetText(timestr)
-   end
+   TK.last_fence_d = d
 end
 
 local function onTick()
@@ -528,11 +530,11 @@ function TK:UpdateControls()
       local icon = w["icon_"..name]
       local label = w["l_"..name]
 
-      if((not TK.saved.dshow[v[1]] and TK.saved.show[v[1]]) or 
+      if((not TK.saved.dshow[v[1]] and TK.saved.show[v[1]]) or
          (TK.saved.dshow[v[1]] and TK.dshow[v[1]])) then
          label:SetParent(w.bg)
          label:ClearAnchors()
-         
+
          icon:SetParent(w.bg)
          icon:ClearAnchors()
 
@@ -637,6 +639,9 @@ function TK:BuildUI()
    EVENT_MANAGER:RegisterForEvent(TK.name, EVENT_OPEN_FENCE, function(evc) onFence(true) end)
    EVENT_MANAGER:RegisterForEvent(TK.name, EVENT_CLOSE_STORE, function(evc) onFence(false) end)
    EVENT_MANAGER:RegisterForEvent(TK.name, EVENT_SELL_RECEIPT, onSold)
+
+   EVENT_MANAGER:RegisterForEvent(TK.name, EVENT_ACTION_LAYER_PUSHED, onLayerChange)
+   EVENT_MANAGER:RegisterForEvent(TK.name, EVENT_ACTION_LAYER_POPPED, onLayerChange)
 
    SHARED_INVENTORY:RegisterCallback("SlotRemoved", onRemoved)
 

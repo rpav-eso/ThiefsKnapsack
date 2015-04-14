@@ -89,6 +89,15 @@ local options = {
      end,
    },
    { type = "checkbox",
+     name = "Show the Fence Reset Clock",
+     tooltip = "",
+     getFunc = function() return TK.saved.show.FenceTimer; end,
+     setFunc = function(x)
+        TK.saved.show.FenceTimer = x
+        TK:UpdateControls()
+     end,
+   },
+   { type = "checkbox",
      name = "Show the Bounty Reset Clock",
      tooltip = "(Disabled if \"Dynamic Bounty\" is on in Options, which is the default)",
      disabled = function() return TK.saved.dshow.BountyTimer; end,
@@ -220,6 +229,16 @@ local options = {
              TK:UpdateControls()
           end,
         },
+        {  type = "checkbox",
+           name = "Hide in menus",
+           tooltip = "When set, the bar will be hidden when in menus and similar",
+           getFunc = function() return TK.saved.options.hide_on_menu end,
+           setFunc = function(x)
+              TK.saved.options.hide_on_menu = x
+              -- A bit of a hack
+              TK.window:SetHidden(x)
+           end
+        },
         { type = "dropdown",
           name = "Alignment",
           tooltip = "Set which corner of the screen the bar is relative to",
@@ -243,24 +262,6 @@ local options = {
         { type = "button",
           name = "Reload UI",
           func = function() ReloadUI() end,
-        },
-     },
-   },
-   
-   { type = "submenu",
-     name = "Experimental",
-     controls = {
-        { type = "description",
-          text = "|cFF0000Experimental.|r  Anything here hasn't been fully tested and probably does not work!  |c00FFFFUse at your own risk!|r", },
-
-        { type = "checkbox",
-          name = "Show the Fence Reset Clock",
-          tooltip = "",
-          getFunc = function() return TK.saved.show.FenceTimer; end,
-          setFunc = function(x)
-             TK.saved.show.FenceTimer = x
-             TK:UpdateControls()
-          end,
         },
      },
    },
