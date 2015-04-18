@@ -507,7 +507,7 @@ local controls = {
    {"Legerdemain", 10,  8, "(00) 0000/0000", "/esoui/art/icons/mapkey/mapkey_fence.dds", { 0, 255, 0 }},
    {"SellsLeft",   10,  6, "000/000",  "/esoui/art/vendor/vendor_tabicon_sell_up.dds"},
    {"FenceTimer",  10,  8, "00:00:00", "/esoui/art/miscellaneous/gamepad/gp_icon_timer32.dds"},
-   {"BountyTimer", 10,  8, "00:00",    "/esoui/art/miscellaneous/gamepad/gp_icon_timer32.dds", { 255, 0, 0 }},
+   {"BountyTimer", 10,  8, "00:00:00", "/esoui/art/miscellaneous/gamepad/gp_icon_timer32.dds", { 255, 0, 0 }},
    {"Bounty",      10,  8, "000",      "/esoui/art/currency/currency_gold.dds", { 255, 0, 0 }},
    {"Average",     10,  6, "000.00",   "/esoui/art/vendor/vendor_tabicon_fence_up.dds"},
    {"Estimate",    10,  6, "00000",    "/esoui/art/vendor/vendor_tabicon_fence_up.dds"},
