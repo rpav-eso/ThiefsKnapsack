@@ -523,7 +523,7 @@ local controls = {
    {"BountyTimer", 10,  4, "00:00",    "/esoui/art/miscellaneous/gamepad/gp_icon_timer32.dds", { 255, 0, 0 }},
    {"Bounty",      10,  8, "000",      "/esoui/art/currency/currency_gold.dds", { 255, 0, 0 }},
    {"Average",     10,  6, "000.00",   "/esoui/art/vendor/vendor_tabicon_fence_up.dds"},
-   {"Estimate",    10,  6, "00000",    "/esoui/art/vendor/vendor_tabicon_fence_up.dds"},
+   {"Estimate",    10,  6, "00000",    "/esoui/art/vendor/vendor_tabicon_fence_up.dds", { 238, 202, 0 }},
    {"Quality",     10,  8, "0.00",     "/esoui/art/crafting/smithing_tabicon_improve_up.dds"},
 }
 
@@ -545,7 +545,7 @@ function TK:UpdateControls()
       local label = w["l_"..name]
 
       if((not TK.saved.dshow[v[1]] and TK.saved.show[v[1]]) or
-         (TK.saved.dshow[v[1]] and TK.dshow[v[1]])) then
+         (TK.saved.dshow[v[1]] and TK.dshow[v[1]] and TK.saved.show[v[1]])) then
          label:SetParent(w.bg)
          label:ClearAnchors()
 
@@ -564,7 +564,7 @@ function TK:UpdateControls()
 
          if(v[6]) then
             local color = v[6]
-            icon:SetColor(color[1], color[2], color[3])
+            icon:SetColor(color[1], color[2], color[3], 1.0)
          end
 
          if(last) then

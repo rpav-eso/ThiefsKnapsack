@@ -5,6 +5,15 @@ local LAM = LibStub:GetLibrary("LibAddonMenu-2.0")
 
 local util = LibStub:GetLibrary("util.rpav-1")
 local prnd = util.prnd
+local str = util.str
+
+local function tex(name, color)
+   if(color) then
+      return str("|c", color, "|t16:16:", name, ":inheritColor|t|r")
+   else
+      return str("|t16:16:", name, "|t")
+   end
+end
 
 local panel = {
    type = "panel",
@@ -34,7 +43,7 @@ local options = {
    { type = "header",
      name = "Fields", },
    { type = "checkbox",
-     name = "Show gold value",
+     name = str(tex("/esoui/art/currency/currency_gold.dds"), " Gold value"),
      tooltip = "Display the total gold value of stolen items",
      getFunc = function() return TK.saved.show.Value; end,
      setFunc = function(x)
@@ -43,7 +52,8 @@ local options = {
      end,
    },
    { type = "checkbox",
-     name = "Show stolen item count",
+     name = str(tex("/esoui/art/inventory/inventory_stolenitem_icon.dds"),
+                " Stolen item count"),
      tooltip = "Display the total number of stolen items currently held (stacks included!)",
      getFunc = function() return TK.saved.show.Count; end,
      setFunc = function(x)
@@ -52,7 +62,8 @@ local options = {
      end,
    },
    { type = "checkbox",
-     name = "Show stolen recipe/motif count",
+     name = str(tex("/esoui/art/icons/quest_book_001.dds"),
+                " Stolen recipe/motif count"),
      tooltip = "Display the number of recipes or racial motifs held",
      getFunc = function() return TK.saved.show.Recipes; end,
      setFunc = function(x)
@@ -61,7 +72,8 @@ local options = {
      end,
    },
    { type = "checkbox",
-     name = "Show Legerdemain XP",
+     name = str(tex("/esoui/art/icons/mapkey/mapkey_fence.dds", "00FF00"),
+                " Legerdemain XP"),
      tooltip = "Because everyone likes to watch the numbers go up",
      getFunc = function() return TK.saved.show.Legerdemain; end,
      setFunc = function(x)
@@ -70,7 +82,8 @@ local options = {
      end,
    },
    { type = "checkbox",
-     name = "Show sells (to the fences) remaining",
+     name = str(tex("/esoui/art/vendor/vendor_tabicon_sell_up.dds"),
+                "Show sells (to the fences) remaining"),
      tooltip = "Display the total remaining times you can fence items",
      getFunc = function() return TK.saved.show.SellsLeft; end,
      setFunc = function(x)
@@ -89,7 +102,8 @@ local options = {
      end,
    },
    { type = "checkbox",
-     name = "Show the Fence Reset Clock",
+     name = str(tex("/esoui/art/miscellaneous/gamepad/gp_icon_timer32.dds"),
+                "Show the Fence Reset Clock"),
      tooltip = "",
      getFunc = function() return TK.saved.show.FenceTimer; end,
      setFunc = function(x)
@@ -98,22 +112,19 @@ local options = {
      end,
    },
    { type = "checkbox",
-     name = "Show the Bounty Reset Clock",
-     tooltip = "(Disabled if \"Dynamic Bounty\" is on in Options, which is the default)",
-     disabled = function() return TK.saved.dshow.BountyTimer; end,
+     name = str(tex("/esoui/art/miscellaneous/gamepad/gp_icon_timer32.dds", "FF0000"),
+                "Show the Bounty Reset Clock"),
+     tooltip = "(\"Dynamic Bounty\" will hide this if you have no bounty)",
      getFunc = function() return TK.saved.show.BountyTimer; end,
      setFunc = function(x)
         TK.saved.show.BountyTimer = x
         TK:UpdateControls()
      end,
    },
-   { type = "description",
-     text = "|cFF0000Note:|r The Bounty Clock is an |c00FFFFestimate|r, and may be off by up to |c00FFFFminutes|r.",
-   },
    { type = "checkbox",
-     name = "Show bounty",
-     tooltip = "Show your current bounty (disabled if \"Dynamic Bounty\" is on, which is the default)",
-     disabled = function() return TK.saved.dshow.Bounty; end,
+     name = str(tex("/esoui/art/currency/currency_gold.dds", "FF0000"),
+                "Show bounty"),
+     tooltip = "(\"Dynamic Bounty\" will hide this if you have no bounty)",
      getFunc = function() return TK.saved.show.Bounty; end,
      setFunc = function(x)
         TK.saved.show.Bounty = x
@@ -121,7 +132,8 @@ local options = {
      end,
    },
    { type = "checkbox",
-     name = "Show average value",
+     name = str(tex("/esoui/art/vendor/vendor_tabicon_fence_up.dds"),
+                "Show average value"),
      tooltip = "Display the average value of an item (i.e., ratio of value to item count)",
      getFunc = function() return TK.saved.show.Average; end,
      setFunc = function(x)
@@ -130,7 +142,8 @@ local options = {
      end,
    },
    { type = "checkbox",
-     name = "Show estimated daily profit",
+     name = str(tex("/esoui/art/vendor/vendor_tabicon_fence_up.dds", "EECA00"),
+                "Show estimated daily profit"),
      tooltip = "Show the estimated daily haul based on remaining fence sells and the average stolen item value",
      getFunc = function() return TK.saved.show.Estimate; end,
      setFunc = function(x)
@@ -139,7 +152,8 @@ local options = {
      end,
    },
    { type = "checkbox",
-     name = "Show average quality",
+     name = str(tex("/esoui/art/crafting/smithing_tabicon_improve_up.dds"),
+                "Show average quality"),
      tooltip = "Display the average quality of item",
      getFunc = function() return TK.saved.show.Quality; end,
      setFunc = function(x)
